@@ -1,5 +1,10 @@
 {
   "dependencies": {
-    "discord.js": "^14.22.1"
+    "colors": "^1.4.0",
+    "discord.js": "^14.22.1",
+    "drizzle-kit": "^0.31.5",
+    "drizzle-orm": "^0.44.6",
+    "pg": "^8.16.3",
+    "uuid": "^13.0.0"
   }
 }
