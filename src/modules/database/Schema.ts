@@ -182,5 +182,7 @@ export type ProjectMember = typeof ProjectMembers.$inferSelect;
 export type NewProjectMember = typeof ProjectMembers.$inferInsert;
 export type Committee = typeof Committees.$inferSelect;
 export type NewCommittee = typeof Committees.$inferInsert;
+export type CommitteeMember = typeof CommitteeMembers.$inferSelect;
+export type NewCommitteeMember = typeof CommitteeMembers.$inferInsert;
 export type Sponsorship = typeof Sponsorships.$inferSelect;
 export type NewSponsorship = typeof Sponsorships.$inferInsert;
