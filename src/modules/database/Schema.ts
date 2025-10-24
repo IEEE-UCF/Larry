@@ -30,7 +30,6 @@ export const sponsorshipTierEnum = pgEnum('sponsorship_tier_enum', [
 // Members
 export const Members = pgTable('members', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	userId: varchar('user_id', { length: 64 }).notNull().unique(),
 	firstName: varchar('first_name', { length: 255 }).notNull(),
 	middleName: varchar('middle_name', { length: 255 }),
 	lastName: varchar('last_name', { length: 255 }).notNull(),
@@ -54,7 +53,6 @@ export const Members = pgTable('members', {
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
 	index('members_idx_id').on(table.id),
-	index('members_idx_user_id').on(table.userId),
 	index('members_idx_discord_id').on(table.discordID),
 	index('members_idx_email').on(table.email),
 	index('members_idx_officer_status').on(table.officerStatus),

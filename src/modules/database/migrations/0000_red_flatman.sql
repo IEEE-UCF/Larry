@@ -33,7 +33,6 @@ CREATE TABLE "events" (
 --> statement-breakpoint
 CREATE TABLE "members" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(64) NOT NULL,
 	"first_name" varchar(255) NOT NULL,
 	"middle_name" varchar(255),
 	"last_name" varchar(255) NOT NULL,
@@ -55,7 +54,6 @@ CREATE TABLE "members" (
 	"website_url" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "members_user_id_unique" UNIQUE("user_id"),
 	CONSTRAINT "members_discord_id_unique" UNIQUE("discord_id"),
 	CONSTRAINT "members_email_unique" UNIQUE("email")
 );
@@ -115,7 +113,6 @@ CREATE INDEX "events_idx_location" ON "events" USING btree ("location");--> stat
 CREATE INDEX "events_idx_created_at" ON "events" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "events_idx_updated_at" ON "events" USING btree ("updated_at");--> statement-breakpoint
 CREATE INDEX "members_idx_id" ON "members" USING btree ("id");--> statement-breakpoint
-CREATE INDEX "members_idx_user_id" ON "members" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "members_idx_discord_id" ON "members" USING btree ("discord_id");--> statement-breakpoint
 CREATE INDEX "members_idx_email" ON "members" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "members_idx_officer_status" ON "members" USING btree ("officer_status");--> statement-breakpoint

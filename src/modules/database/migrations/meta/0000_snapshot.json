@@ -1,5 +1,5 @@
 {
-  "id": "9277cf92-bcde-487b-a313-cb26a3249469",
+  "id": "4f7ee760-f72f-4cdc-9214-22eb532b8edd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -486,12 +486,6 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "first_name": {
           "name": "first_name",
           "type": "varchar(255)",
@@ -632,21 +626,6 @@
           "columns": [
             {
               "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_idx_user_id": {
-          "name": "members_idx_user_id",
-          "columns": [
-            {
-              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -868,13 +847,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "members_user_id_unique": {
-          "name": "members_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        },
         "members_discord_id_unique": {
           "name": "members_discord_id_unique",
           "nullsNotDistinct": false,
