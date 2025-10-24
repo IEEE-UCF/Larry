@@ -12,7 +12,6 @@ async function main() {
 	// Add a member
 	const memberRes = await db.createMember({
 		id: uuidv4(),
-		userId: 'testuser',
 		firstName: 'Larry',
 		lastName: 'Bot',
 		officerStatus: false,
