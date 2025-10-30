@@ -26,6 +26,7 @@ interface Config {
 		footer: string;
 	};
 	postgres: string;
+	calendarURLs?: string[];
 	owners: {
 		id: string;
 		name: string;
@@ -70,6 +71,8 @@ const config: Config = {
 	},
 
 	postgres: '',
+
+	calendarURLs: [],
 
 	owners: [
 		{

@@ -2,6 +2,7 @@ import { Client, Collection } from 'discord.js';
 import config from '../config';
 import logger from '../modules/helpers/Logger';
 import { Database } from '../modules/database/Database';
+import { Calendar } from '../modules/calendar/main';
 
 
 class Larry extends Client {
@@ -10,6 +11,7 @@ class Larry extends Client {
 	commands: Collection<string, any>;
 	logger: any;
 	database: Database;
+	calendar: any;
 
 	constructor() {
 		super({
@@ -24,9 +26,9 @@ class Larry extends Client {
 		this.prefix = config.prefix;
 		this.logger = logger;
 		this.database = new Database(this, this.config.databaseUrl);
+		this.calendar = new Calendar(this.config.calendarURLs);
 
 		this.commands = new Collection();
-
 	}
 
 	async init() {
