@@ -51,7 +51,7 @@ class Logger {
 	}
 
 	rateLimit(rateLimitInfo: RateLimitInfo): void {
-		const username = this.client.user?.username || 'Unknown';
+		const username = this.client.user?.username ?? 'Unknown';
 		console.log(`${colors.bgBlack(` ${new Date().toLocaleTimeString()} `)}${colors.bgRed.white(' ! ')} [SpamWarning] ${username} is being ratelimited on method ${colors.underline(rateLimitInfo.method)} ➜ ${colors.blue(rateLimitInfo.path)}`);
 	}
 
