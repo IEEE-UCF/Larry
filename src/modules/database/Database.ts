@@ -1,171 +1,633 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { eq, ilike, or } from 'drizzle-orm';
-import * as schema from './Schema';
+import { eq, ilike, or, gte, lte, desc, asc, sql } from 'drizzle-orm';
+import * as schema from './Schema.js';
+import type {
+	Member, NewMember,
+	Event, NewEvent,
+	Project, NewProject,
+	Committee, NewCommittee,
+	CommitteeMember,
+	Sponsorship, NewSponsorship,
+} from './Schema.js';
 
 export class Database {
 	private client: any;
-	private pool: any;
+	private pool: Pool;
 	private db: any;
+	private isConnected: boolean = false;
 
 	constructor(client: any, connectionString: string) {
 		this.client = client;
-		this.pool = new Pool({ connectionString });
+		this.pool = new Pool({
+			connectionString,
+			max: 20, // Maximum number of clients in the pool
+			idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
+			connectionTimeoutMillis: 2000, // How long to wait when connecting
+		});
 		this.db = drizzle(this.pool, { schema });
 	}
 
-	async loadDatabase() {
+	async loadDatabase(): Promise<boolean> {
 		try {
-			await this.pool.connect();
+			// Test the connection
+			const client = await this.pool.connect();
+			await client.query('SELECT NOW()');
+			client.release();
+
+			this.isConnected = true;
 			this.client?.logger?.startup('Connected to PostgreSQL database!');
 			return true;
 		} catch (error) {
+			this.isConnected = false;
 			this.client?.logger?.fail('Error connecting to database.');
-			console.error(error);
+			console.error('Database connection error:', error);
 			return false;
 		}
 	}
 
-	async closeDatabase() {
+	async closeDatabase(): Promise<boolean> {
 		try {
 			await this.pool.end();
-			this.client?.logger?.shutdown('Database closed.');
+			this.isConnected = false;
+			this.client?.logger?.shutdown('Database connection closed.');
 			return true;
 		} catch (error) {
 			this.client?.logger?.fail('Error closing database.');
-			console.error(error);
+			console.error('Database close error:', error);
 			return false;
 		}
 	}
 
-	// --- Member Methods ---
-	async getMemberByUserId(userId: string) {
-		const member = await this.db.select().from(schema.Members).where(eq(schema.Members.userId, userId));
-		return member[0] || null;
+	/**
+	 * Check if database is connected
+	 */
+	isReady(): boolean {
+		return this.isConnected;
 	}
 
-	async createMember(data: Partial<typeof schema.Members.$inferInsert>) {
-		return await this.db.insert(schema.Members).values(data).returning();
+	/**
+	 * Execute a transaction
+	 */
+	transaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
+		return this.db.transaction(callback);
 	}
 
-	async deleteMemberByUserId(userId: string) {
-		await this.db.delete(schema.Members).where(eq(schema.Members.userId, userId));
+	// ==================== MEMBER METHODS ====================
+
+	/**
+	 * Get member by Discord user ID
+	 */
+	async getMemberByDiscordId(discordId: string): Promise<Member | null> {
+		try {
+			const members = await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.discordID, discordId))
+				.limit(1);
+			return members[0] ?? null;
+		} catch (error) {
+			console.error('Error getting member by Discord ID:', error);
+			return null;
+		}
 	}
 
-	async searchMembers(query: string) {
-		return await this.db.select().from(schema.Members)
-			.where(or(
-				ilike(schema.Members.firstName, `%${query}%`),
-				ilike(schema.Members.lastName, `%${query}%`),
-			));
+	/**
+	 * Get member by database ID
+	 */
+	async getMemberById(id: string): Promise<Member | null> {
+		try {
+			const members = await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.id, id))
+				.limit(1);
+			return members[0] ?? null;
+		} catch (error) {
+			console.error('Error getting member by ID:', error);
+			return null;
+		}
 	}
 
-	async getAllMembers() {
-		return await this.db.select().from(schema.Members);
+	/**
+	 * Get member by email
+	 */
+	async getMemberByEmail(email: string): Promise<Member | null> {
+		try {
+			const members = await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.email, email.toLowerCase()))
+				.limit(1);
+			return members[0] ?? null;
+		} catch (error) {
+			console.error('Error getting member by email:', error);
+			return null;
+		}
 	}
 
-	// --- Committee Methods ---
-	async getCommitteeById(id: string) {
-		const committee = await this.db.select().from(schema.Committees).where(eq(schema.Committees.id, id));
-		return committee[0] || null;
+	/**
+	 * Create a new member
+	 */
+	async createMember(data: NewMember): Promise<Member | null> {
+		try {
+			const members = await this.db.insert(schema.Members).values({
+				...data,
+				email: data.email?.toLowerCase(), // Normalize email
+			}).returning();
+			return members[0] ?? null;
+		} catch (error) {
+			console.error('Error creating member:', error);
+			return null;
+		}
 	}
 
-	async createCommittee(data: Partial<typeof schema.Committees.$inferInsert>) {
-		return await this.db.insert(schema.Committees).values(data).returning();
+	/**
+	 * Update member by Discord ID
+	 */
+	async updateMemberByDiscordId(discordId: string, data: Partial<NewMember>): Promise<Member | null> {
+		try {
+			const members = await this.db.update(schema.Members)
+				.set({
+					...data,
+					email: data.email?.toLowerCase(), // Normalize email if provided
+					updatedAt: new Date(),
+				})
+				.where(eq(schema.Members.discordID, discordId))
+				.returning();
+			return members[0] ?? null;
+		} catch (error) {
+			console.error('Error updating member:', error);
+			return null;
+		}
 	}
 
-	async deleteCommitteeById(id: string) {
-		await this.db.delete(schema.Committees).where(eq(schema.Committees.id, id));
+	/**
+	 * Delete member by Discord ID
+	 */
+	async deleteMemberByDiscordId(discordId: string): Promise<boolean> {
+		try {
+			await this.db.delete(schema.Members)
+				.where(eq(schema.Members.discordID, discordId));
+			return true;
+		} catch (error) {
+			console.error('Error deleting member:', error);
+			return false;
+		}
 	}
 
-	async searchCommittees(query: string) {
-		return await this.db.select().from(schema.Committees)
-			.where(ilike(schema.Committees.title, `%${query}%`));
+	/**
+	 * Search members by name, email, or Discord ID
+	 */
+	async searchMembers(query: string, limit: number = 50): Promise<Member[]> {
+		try {
+			const searchTerm = `%${query.toLowerCase()}%`;
+			return await this.db.select()
+				.from(schema.Members)
+				.where(or(
+					ilike(schema.Members.firstName, searchTerm),
+					ilike(schema.Members.lastName, searchTerm),
+					ilike(schema.Members.email, searchTerm),
+					ilike(schema.Members.discordID, searchTerm),
+				))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName))
+				.limit(limit);
+		} catch (error) {
+			console.error('Error searching members:', error);
+			return [];
+		}
 	}
 
-	async getAllCommittees() {
-		return await this.db.select().from(schema.Committees);
+	/**
+	 * Get all officers
+	 */
+	async getOfficers(): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.officerStatus, true))
+				.orderBy(asc(schema.Members.officerRole));
+		} catch (error) {
+			console.error('Error getting officers:', error);
+			return [];
+		}
 	}
 
-	// --- Project Methods ---
-	async getProjectById(id: string) {
-		const project = await this.db.select().from(schema.Projects).where(eq(schema.Projects.id, id));
-		return project[0] || null;
+	/**
+	 * Get all administrators
+	 */
+	async getAdministrators(): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.administrator, true))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting administrators:', error);
+			return [];
+		}
 	}
 
-	async createProject(data: Partial<typeof schema.Projects.$inferInsert>) {
-		return await this.db.insert(schema.Projects).values(data).returning();
+	/**
+	 * Get members by graduation year
+	 */
+	async getMembersByGraduationYear(year: number): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.graduationYear, year))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting members by graduation year:', error);
+			return [];
+		}
 	}
 
-	async deleteProjectById(id: string) {
-		await this.db.delete(schema.Projects).where(eq(schema.Projects.id, id));
+	/**
+	 * Get members by major
+	 */
+	async getMembersByMajor(major: string): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(ilike(schema.Members.major, `%${major}%`))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting members by major:', error);
+			return [];
+		}
 	}
 
-	async searchProjects(query: string) {
-		return await this.db.select().from(schema.Projects)
-			.where(or(
-				ilike(schema.Projects.title, `%${query}%`),
-				ilike(schema.Projects.overview, `%${query}%`),
-			));
+	/**
+	 * Get members who have paid dues
+	 */
+	async getMembersWithPaidDues(): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.duesPaid, true))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting members with paid dues:', error);
+			return [];
+		}
 	}
 
-	async getAllProjects() {
-		return await this.db.select().from(schema.Projects);
+	/**
+	 * Get all members with pagination
+	 */
+	async getAllMembers(page: number = 1, limit: number = 50): Promise<Member[]> {
+		try {
+			const offset = (page - 1) * limit;
+			return await this.db.select()
+				.from(schema.Members)
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName))
+				.limit(limit)
+				.offset(offset);
+		} catch (error) {
+			console.error('Error getting all members:', error);
+			return [];
+		}
 	}
 
-	// --- CommitteeMembers Methods ---
-	async addCommitteeMember(data: Partial<typeof schema.CommitteeMembers.$inferInsert>) {
-		return await this.db.insert(schema.CommitteeMembers).values(data).returning();
+	/**
+	 * Get member count
+	 */
+	async getMemberCount(): Promise<number> {
+		try {
+			const result = await this.db.select({ count: sql<number>`count(*)` })
+				.from(schema.Members);
+			return result[0]?.count ?? 0;
+		} catch (error) {
+			console.error('Error getting member count:', error);
+			return 0;
+		}
 	}
 
-	async getCommitteeMembers(committeeId: string) {
-		return await this.db.select().from(schema.CommitteeMembers)
-			.where(eq(schema.CommitteeMembers.committeeId, committeeId));
+	// ==================== EVENT METHODS ====================
+
+	/**
+	 * Get event by ID
+	 */
+	async getEventById(id: string): Promise<Event | null> {
+		try {
+			const events = await this.db.select()
+				.from(schema.Events)
+				.where(eq(schema.Events.id, id))
+				.limit(1);
+			return events[0] ?? null;
+		} catch (error) {
+			console.error('Error getting event by ID:', error);
+			return null;
+		}
 	}
 
-	async deleteCommitteeMember(id: string) {
-		await this.db.delete(schema.CommitteeMembers).where(eq(schema.CommitteeMembers.id, id));
+	/**
+	 * Create a new event
+	 */
+	async createEvent(data: NewEvent): Promise<Event | null> {
+		try {
+			const events = await this.db.insert(schema.Events).values(data).returning();
+			return events[0] ?? null;
+		} catch (error) {
+			console.error('Error creating event:', error);
+			return null;
+		}
 	}
 
-	// --- ProjectMembers Methods ---
-	async addProjectMember(data: Partial<typeof schema.ProjectMembers.$inferInsert>) {
-		return await this.db.insert(schema.ProjectMembers).values(data).returning();
+	/**
+	 * Get upcoming events
+	 */
+	async getUpcomingEvents(limit: number = 20): Promise<Event[]> {
+		try {
+			const now = new Date();
+			return await this.db.select()
+				.from(schema.Events)
+				.where(gte(schema.Events.time, now))
+				.orderBy(asc(schema.Events.time))
+				.limit(limit);
+		} catch (error) {
+			console.error('Error getting upcoming events:', error);
+			return [];
+		}
 	}
 
-	async getProjectMembers(projectId: string) {
-		return await this.db.select().from(schema.ProjectMembers)
-			.where(eq(schema.ProjectMembers.projectId, projectId));
+	/**
+	 * Get past events
+	 */
+	async getPastEvents(limit: number = 20): Promise<Event[]> {
+		try {
+			const now = new Date();
+			return await this.db.select()
+				.from(schema.Events)
+				.where(lte(schema.Events.time, now))
+				.orderBy(desc(schema.Events.time))
+				.limit(limit);
+		} catch (error) {
+			console.error('Error getting past events:', error);
+			return [];
+		}
 	}
 
-	async deleteProjectMember(id: string) {
-		await this.db.delete(schema.ProjectMembers).where(eq(schema.ProjectMembers.id, id));
+	/**
+	 * Search events by title or location
+	 */
+	async searchEvents(query: string, limit: number = 20): Promise<Event[]> {
+		try {
+			const searchTerm = `%${query.toLowerCase()}%`;
+			return await this.db.select()
+				.from(schema.Events)
+				.where(or(
+					ilike(schema.Events.title, searchTerm),
+					ilike(schema.Events.location, searchTerm),
+					ilike(schema.Events.description, searchTerm),
+				))
+				.orderBy(desc(schema.Events.time))
+				.limit(limit);
+		} catch (error) {
+			console.error('Error searching events:', error);
+			return [];
+		}
 	}
 
-	// --- Sponsorships Methods ---
-	async getSponsorshipById(id: string) {
-		const sponsorship = await this.db.select().from(schema.Sponsorships).where(eq(schema.Sponsorships.id, id));
-		return sponsorship[0] || null;
+	// ==================== COMMITTEE METHODS ====================
+
+	/**
+	 * Get committee by ID
+	 */
+	async getCommitteeById(id: string): Promise<Committee | null> {
+		try {
+			const committees = await this.db.select()
+				.from(schema.Committees)
+				.where(eq(schema.Committees.id, id))
+				.limit(1);
+			return committees[0] ?? null;
+		} catch (error) {
+			console.error('Error getting committee by ID:', error);
+			return null;
+		}
 	}
 
-	async createSponsorship(data: Partial<typeof schema.Sponsorships.$inferInsert>) {
-		return await this.db.insert(schema.Sponsorships).values(data).returning();
+	/**
+	 * Create a new committee
+	 */
+	async createCommittee(data: NewCommittee): Promise<Committee | null> {
+		try {
+			const committees = await this.db.insert(schema.Committees).values(data).returning();
+			return committees[0] ?? null;
+		} catch (error) {
+			console.error('Error creating committee:', error);
+			return null;
+		}
 	}
 
-	async deleteSponsorshipById(id: string) {
-		await this.db.delete(schema.Sponsorships).where(eq(schema.Sponsorships.id, id));
+	/**
+	 * Get all committees
+	 */
+	async getAllCommittees(): Promise<Committee[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Committees)
+				.orderBy(asc(schema.Committees.title));
+		} catch (error) {
+			console.error('Error getting all committees:', error);
+			return [];
+		}
 	}
 
-	async searchSponsorships(query: string) {
-		return await this.db.select().from(schema.Sponsorships)
-			.where(ilike(schema.Sponsorships.companyName, `%${query}%`));
+	/**
+	 * Search committees by title
+	 */
+	async searchCommittees(query: string): Promise<Committee[]> {
+		try {
+			const searchTerm = `%${query.toLowerCase()}%`;
+			return await this.db.select()
+				.from(schema.Committees)
+				.where(ilike(schema.Committees.title, searchTerm))
+				.orderBy(asc(schema.Committees.title));
+		} catch (error) {
+			console.error('Error searching committees:', error);
+			return [];
+		}
 	}
 
-	async getAllSponsorships() {
-		return await this.db.select().from(schema.Sponsorships);
+	/**
+	 * Get committee members
+	 */
+	async getCommitteeMembers(committeeId: string): Promise<(CommitteeMember & { member: Member })[]> {
+		try {
+			return await this.db.select()
+				.from(schema.CommitteeMembers)
+				.leftJoin(schema.Members, eq(schema.CommitteeMembers.memberId, schema.Members.id))
+				.where(eq(schema.CommitteeMembers.committeeId, committeeId));
+		} catch (error) {
+			console.error('Error getting committee members:', error);
+			return [];
+		}
 	}
 
-	// --- Utility ---
-	async rawQuery(sql: string) {
-		return await this.pool.query(sql);
+	// ==================== PROJECT METHODS ====================
+
+	/**
+	 * Get project by ID
+	 */
+	async getProjectById(id: string): Promise<Project | null> {
+		try {
+			const projects = await this.db.select()
+				.from(schema.Projects)
+				.where(eq(schema.Projects.id, id))
+				.limit(1);
+			return projects[0] ?? null;
+		} catch (error) {
+			console.error('Error getting project by ID:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Create a new project
+	 */
+	async createProject(data: NewProject): Promise<Project | null> {
+		try {
+			const projects = await this.db.insert(schema.Projects).values(data).returning();
+			return projects[0] ?? null;
+		} catch (error) {
+			console.error('Error creating project:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Search projects by title or overview
+	 */
+	async searchProjects(query: string, limit: number = 20): Promise<Project[]> {
+		try {
+			const searchTerm = `%${query.toLowerCase()}%`;
+			return await this.db.select()
+				.from(schema.Projects)
+				.where(or(
+					ilike(schema.Projects.title, searchTerm),
+					ilike(schema.Projects.overview, searchTerm),
+				))
+				.orderBy(asc(schema.Projects.title))
+				.limit(limit);
+		} catch (error) {
+			console.error('Error searching projects:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get all projects
+	 */
+	async getAllProjects(): Promise<Project[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Projects)
+				.orderBy(asc(schema.Projects.title));
+		} catch (error) {
+			console.error('Error getting all projects:', error);
+			return [];
+		}
+	}
+
+	// ==================== SPONSORSHIP METHODS ====================
+
+	/**
+	 * Get sponsorship by ID
+	 */
+	async getSponsorshipById(id: string): Promise<Sponsorship | null> {
+		try {
+			const sponsorships = await this.db.select()
+				.from(schema.Sponsorships)
+				.where(eq(schema.Sponsorships.id, id))
+				.limit(1);
+			return sponsorships[0] ?? null;
+		} catch (error) {
+			console.error('Error getting sponsorship by ID:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Create a new sponsorship
+	 */
+	async createSponsorship(data: NewSponsorship): Promise<Sponsorship | null> {
+		try {
+			const sponsorships = await this.db.insert(schema.Sponsorships).values(data).returning();
+			return sponsorships[0] ?? null;
+		} catch (error) {
+			console.error('Error creating sponsorship:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Get sponsorships by tier
+	 */
+	async getSponsorshipsByTier(tier: 'bronze' | 'silver' | 'gold'): Promise<Sponsorship[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Sponsorships)
+				.where(eq(schema.Sponsorships.tier, tier))
+				.orderBy(desc(schema.Sponsorships.moneyDonated));
+		} catch (error) {
+			console.error('Error getting sponsorships by tier:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get all sponsorships
+	 */
+	async getAllSponsorships(): Promise<Sponsorship[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Sponsorships)
+				.orderBy(desc(schema.Sponsorships.moneyDonated));
+		} catch (error) {
+			console.error('Error getting all sponsorships:', error);
+			return [];
+		}
+	}
+
+	// ==================== UTILITY METHODS ====================
+
+	/**
+	 * Execute raw SQL query (use with caution)
+	 */
+	async rawQuery(query: string, params?: any[]): Promise<any> {
+		try {
+			return await this.pool.query(query, params);
+		} catch (error) {
+			console.error('Error executing raw query:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get the drizzle database instance for complex queries
+	 */
+	getDB() {
+		return this.db;
+	}
+
+	/**
+	 * Get the connection pool for direct access
+	 */
+	getPool(): Pool {
+		return this.pool;
+	}
+
+	/**
+	 * Health check - verify database connection
+	 */
+	async healthCheck(): Promise<boolean> {
+		try {
+			const client = await this.pool.connect();
+			await client.query('SELECT 1');
+			client.release();
+			return true;
+		} catch (error) {
+			console.error('Database health check failed:', error);
+			return false;
+		}
 	}
 }
