@@ -61,7 +61,7 @@ client.on(Discord.Events.ClientReady, async () => {
 	const rest = new Discord.REST().setToken(config.token);
 	await rest.put(Discord.Routes.applicationCommands(client.user.id), { body: [
 		eventsCommand.toJSON(),
-	]});
+	] });
 });
 
 client.login(config.token).catch((error) => {

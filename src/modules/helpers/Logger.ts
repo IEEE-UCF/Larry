@@ -1,5 +1,5 @@
 import colors from 'colors';
-import { Client, Guild, User } from 'discord.js';
+import type { Client, Guild, User } from 'discord.js';
 
 interface RateLimitInfo {
 	method: string;
