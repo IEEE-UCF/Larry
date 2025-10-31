@@ -1,10 +1,21 @@
-import Client from './src/structs/Larry';
-const Larry = new Client();
+import Larry from './src/structs/Larry.js';
 
-await Larry.init();
+const bot = new Larry();
+
+await bot.init();
 
 process.once('SIGHUP', async () => {
-	await Larry.destroy();
+	await bot.destroy();
+	process.exit(0);
+});
+
+process.once('SIGINT', async () => {
+	await bot.destroy();
+	process.exit(0);
+});
+
+process.once('SIGTERM', async () => {
+	await bot.destroy();
 	process.exit(0);
 });
 

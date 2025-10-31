@@ -26,25 +26,39 @@
   "type": "module",
   "main": "main.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "bun run main.ts",
+    "dev": "bun --watch main.ts",
+    "build": "bun build main.ts --outdir ./dist",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "docker:build": "docker build -t larry-bot .",
+    "docker:run": "docker run larry-bot",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "@eslint/js": "^9.38.0",
+    "axios": "^1.13.1",
     "colors": "^1.4.0",
-    "discord.js": "^14.22.1",
-    "drizzle-kit": "^0.31.5",
-    "drizzle-orm": "^0.44.6",
+    "discord.js": "^14.24.2",
+    "drizzle-kit": "^0.31.6",
+    "drizzle-orm": "^0.44.7",
     "eslint": "^9.38.0",
-    "node-ical": "^0.22.0",
+    "glob": "^11.0.3",
+    "node-ical": "^0.22.1",
     "pg": "^8.16.3",
     "typescript-eslint": "^8.46.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.6",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/glob": "^9.0.0",
+    "@types/pg": "^8.15.6"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
