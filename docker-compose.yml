@@ -1,0 +1,48 @@
+services:
+  larry:
+    build: .
+    container_name: larry-bot
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      # Mount logs directory (if you want persistent logs)
+      - ./logs:/app/logs
+    networks:
+      - larry-network
+    # Optional: Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+networks:
+  larry-network:
+    driver: bridge
+
+# Optional: If you want to run PostgreSQL locally alongside the bot
+# (Remove this if you're using an external database)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: larry-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: larrydb
+  #     POSTGRES_USER: ${POSTGRES_USER:-larry}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - larry-network
+
+# volumes:
+#   postgres_data:
