@@ -1,11 +1,8 @@
-<div style="display: flex; align-items: flex-start; gap: 1.5rem;">
-	<img src="assets/images/larry.gif" alt="Larry Bot" style="width: 120px; height: auto; margin-right: 1rem;">
-	<div>
-		# Larry - IEEE@UCF Discord Bot
+# Larry - IEEE@UCF Discord Bot
 
-		A silly Discord bot built with TypeScript, Bun, and Discord.js for the IEEE@UCF community.
-	</div>
-</div>
+A silly Discord bot built with TypeScript, Bun, and Discord.js for the IEEE@UCF community.
+
+<img src="assets/images/larry.gif" alt="Larry" style="width: 200px; height: 200px; object-fit: cover;" />
 
 ## Quick Start
 
