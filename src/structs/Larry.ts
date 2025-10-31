@@ -43,6 +43,12 @@ class Larry extends Client {
 				process.exit(1);
 			});
 	}
+
+	async destroy() {
+		await this.database.closeDatabase();
+		await super.destroy();
+		this.logger.info('Client destroyed and database connection closed.');
+	}
 }
 
 export default Larry;
