@@ -2,7 +2,6 @@ import { GatewayIntentBits, Partials, ActivityType } from 'discord.js';
 
 interface Config {
 	token: string;
-	prefix: string;
 	servers: {
 		main: {
 			id: string;
@@ -43,8 +42,6 @@ interface Config {
 
 const config: Config = {
 	token: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-
-	prefix: 'l!',
 
 	servers: {
 		main: {
