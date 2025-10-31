@@ -24,7 +24,7 @@ export class InteractionCreateEvent extends Event {
 			const embed = this.client.createEmbed()
 				.setTitle('❌ Command Disabled')
 				.setDescription('This command is currently disabled.');
-			await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+			await interaction.reply({ embeds: [embed], ephemeral: true });
 			return;
 			return;
 		}
@@ -45,7 +45,7 @@ export class InteractionCreateEvent extends Event {
 			const hasPermission = await command.hasPermission(interaction.user.id);
 			if (!hasPermission) {
 				const embed = command.getPermissionEmbed(command.permissionLevel);
-				await interaction.reply({ embeds: [embed], flags: 'Ephemeral' });
+				await interaction.reply({ embeds: [embed], ephemeral: true });
 				return;
 			}
 		} catch (error) {
@@ -79,7 +79,7 @@ export class InteractionCreateEvent extends Event {
 			const embed = this.client.createEmbed()
 				.setTitle('❌ Command Error')
 				.setDescription('An error occurred while executing this command.');
-			const replyOptions = { embeds: [embed], flags: MessageFlags.Ephemeral };
+			const replyOptions = { embeds: [embed], ephemeral: true };
 
 			if (interaction.replied || interaction.deferred) {
 				await interaction.followUp(replyOptions);
