@@ -33,7 +33,9 @@ export class PingCommand extends Command {
 		await interaction.reply({
 			embeds: [embed],
 		});
-	}	command(): SlashCommandBuilder {
+	}
+
+	command(): SlashCommandBuilder {
 		return new SlashCommandBuilder()
 			.setName(this.name)
 			.setDescription(this.description);
