@@ -1,6 +1,6 @@
 import * as Discord from 'discord.js';
-import { Calendar } from './src/modules/calendar/main.ts';
-import config from './src/config.ts';
+import { Calendar } from '../calendar/main.ts';
+import config from '../../config.ts';
 
 if (!config.token) {
 	console.error('No token provided in environment variables.');
