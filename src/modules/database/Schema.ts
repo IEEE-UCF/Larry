@@ -68,6 +68,36 @@ export const Members = pgTable('members', {
 	index('members_idx_active_officer').on(table.officerStatus, table.administrator),
 ]);
 
+// Committees
+export const Committees = pgTable('committees', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	title: varchar('title', { length: 255 }).notNull(),
+	slug: varchar('slug', { length: 64 }).unique(), // URL-friendly identifier, smth like "software" committee or "solarcar" project
+	about: text('about').notNull(),
+	chairId: uuid('chair_id').notNull().references(() => Members.id),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
+}, (table) => [
+	index('committees_idx_id').on(table.id),
+	index('committees_idx_title').on(table.title),
+	index('committees_idx_slug').on(table.slug),
+	index('committees_idx_chair_id').on(table.chairId),
+	index('committees_idx_created_at').on(table.createdAt),
+	index('committees_idx_updated_at').on(table.updatedAt),
+]);
+// CommitteeMembers: Join table for many-to-many relation between Committees and Members
+export const CommitteeMembers = pgTable('committee_members', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	committeeId: uuid('committee_id').notNull().references(() => Committees.id),
+	memberId: uuid('member_id').notNull().references(() => Members.id),
+	isChair: boolean('is_chair').notNull().default(false),
+}, (table) => [
+	index('committee_members_idx_id').on(table.id),
+	index('committee_members_idx_committee_id').on(table.committeeId),
+	index('committee_members_idx_member_id').on(table.memberId),
+	index('committee_members_idx_is_chair').on(table.isChair),
+]);
+
 // Events
 export const Events = pgTable('events', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -90,11 +120,23 @@ export const Events = pgTable('events', {
 	index('events_idx_created_at').on(table.createdAt),
 	index('events_idx_updated_at').on(table.updatedAt),
 ]);
+// EventAttendees: Join table for many-to-many relation between Events and Members
+export const EventAttendees = pgTable('event_attendees', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	eventId: uuid('event_id').notNull().references(() => Events.id),
+	memberId: uuid('member_id').notNull().references(() => Members.id),
+	timestamp: timestamp('timestamp', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+	index('event_attendees_idx_id').on(table.id),
+	index('event_attendees_idx_event_id').on(table.eventId),
+	index('event_attendees_idx_member_id').on(table.memberId),
+]);
 
 // Projects
 export const Projects = pgTable('projects', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	title: varchar('title', { length: 255 }).notNull(),
+	slug: varchar('slug', { length: 64 }).unique(), // URL-friendly identifier, smth like "software" committee or "solarcar" project
 	overview: text('overview').notNull(),
 	hardwareInfo: text('hardware_info'),
 	softwareInfo: text('software_info'),
@@ -105,6 +147,7 @@ export const Projects = pgTable('projects', {
 }, (table) => [
 	index('projects_idx_id').on(table.id),
 	index('projects_idx_title').on(table.title),
+	index('projects_idx_slug').on(table.slug),
 	index('projects_idx_created_at').on(table.createdAt),
 	index('projects_idx_updated_at').on(table.updatedAt),
 ]);
@@ -119,34 +162,6 @@ export const ProjectMembers = pgTable('project_members', {
 	index('project_members_idx_project_id').on(table.projectId),
 	index('project_members_idx_member_id').on(table.memberId),
 	index('project_members_idx_is_lead').on(table.isLead),
-]);
-
-// Committees
-export const Committees = pgTable('committees', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	title: varchar('title', { length: 255 }).notNull(),
-	about: text('about').notNull(),
-	chairId: uuid('chair_id').notNull().references(() => Members.id),
-	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
-}, (table) => [
-	index('committees_idx_id').on(table.id),
-	index('committees_idx_title').on(table.title),
-	index('committees_idx_chair_id').on(table.chairId),
-	index('committees_idx_created_at').on(table.createdAt),
-	index('committees_idx_updated_at').on(table.updatedAt),
-]);
-// CommitteeMembers: Join table for many-to-many relation between Committees and Members
-export const CommitteeMembers = pgTable('committee_members', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	committeeId: uuid('committee_id').notNull().references(() => Committees.id),
-	memberId: uuid('member_id').notNull().references(() => Members.id),
-	isChair: boolean('is_chair').notNull().default(false),
-}, (table) => [
-	index('committee_members_idx_id').on(table.id),
-	index('committee_members_idx_committee_id').on(table.committeeId),
-	index('committee_members_idx_member_id').on(table.memberId),
-	index('committee_members_idx_is_chair').on(table.isChair),
 ]);
 
 // Sponsorships
@@ -174,6 +189,8 @@ export type Member = typeof Members.$inferSelect;
 export type NewMember = typeof Members.$inferInsert;
 export type Event = typeof Events.$inferSelect;
 export type NewEvent = typeof Events.$inferInsert;
+export type EventAttendee = typeof EventAttendees.$inferSelect;
+export type NewEventAttendee = typeof EventAttendees.$inferInsert;
 export type Project = typeof Projects.$inferSelect;
 export type NewProject = typeof Projects.$inferInsert;
 export type ProjectMember = typeof ProjectMembers.$inferSelect;
