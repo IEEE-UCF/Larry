@@ -34,6 +34,9 @@ interface Config {
 	debug: boolean;
 	intents: GatewayIntentBits[];
 	partials: Partials[];
+	tomfoolery: {
+		features: string[];
+	};
 	custom: Record<string, any>;
 }
 
@@ -103,6 +106,10 @@ const config: Config = {
 		Partials.ThreadMember,
 		Partials.SoundboardSound,
 	],
+
+	tomfoolery: {
+		features: [],
+	},
 
 	custom: {},
 };
