@@ -25,6 +25,7 @@ class Larry extends Client {
 	public logger: any;
 	public database: Database;
 	public calendar: any;
+	public tomfoolery: Tomfoolery;
 	public utils: Utils;
 	private permissionCache: Collection<string, CachedPermission>;
 	private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
