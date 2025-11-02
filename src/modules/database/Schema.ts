@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, date, integer, text, timestamp, pgEnum, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, boolean, date, integer, text, timestamp, pgEnum, index, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm/sql/sql';
 
 // ==== Enums ====
@@ -49,6 +49,7 @@ export const Members = pgTable('members', {
 	linkedinURL: text('linkedin_url'),
 	githubURL: text('github_url'),
 	websiteURL: text('website_url'),
+	active: boolean('active').notNull().default(true),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
@@ -74,7 +75,9 @@ export const Committees = pgTable('committees', {
 	title: varchar('title', { length: 255 }).notNull(),
 	slug: varchar('slug', { length: 64 }).unique(), // URL-friendly identifier, smth like "software" committee or "solarcar" project
 	about: text('about').notNull(),
-	chairId: uuid('chair_id').notNull().references(() => Members.id),
+	chairId: uuid('chair_id').notNull().references(() => Members.id, { onDelete: 'cascade' }),
+	discordRoleId: varchar('discord_role_id', { length: 64 }),
+	active: boolean('active').notNull().default(true),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
@@ -88,14 +91,15 @@ export const Committees = pgTable('committees', {
 // CommitteeMembers: Join table for many-to-many relation between Committees and Members
 export const CommitteeMembers = pgTable('committee_members', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	committeeId: uuid('committee_id').notNull().references(() => Committees.id),
-	memberId: uuid('member_id').notNull().references(() => Members.id),
+	committeeId: uuid('committee_id').notNull().references(() => Committees.id, { onDelete: 'cascade' }),
+	memberId: uuid('member_id').notNull().references(() => Members.id, { onDelete: 'cascade' }),
 	isChair: boolean('is_chair').notNull().default(false),
 }, (table) => [
 	index('committee_members_idx_id').on(table.id),
 	index('committee_members_idx_committee_id').on(table.committeeId),
 	index('committee_members_idx_member_id').on(table.memberId),
 	index('committee_members_idx_is_chair').on(table.isChair),
+	unique('committee_member_unique').on(table.committeeId, table.memberId),
 ]);
 
 // Events
@@ -103,8 +107,12 @@ export const Events = pgTable('events', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	title: varchar('title', { length: 255 }).notNull(),
 	location: varchar('location', { length: 255 }).notNull(),
-	committeeId: uuid('committee_id').references(() => Committees.id),
-	time: timestamp('time', { withTimezone: true }).notNull(),
+	committeeId: uuid('committee_id').references(() => Committees.id, { onDelete: 'cascade' }),
+	slug: varchar('slug', { length: 64 }).unique(),
+	startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+	endTime: timestamp('end_time', { withTimezone: true }),
+	requiresDues: boolean('requires_dues').notNull().default(false),
+	active: boolean('active').notNull().default(true),
 	description: text('description').notNull(),
 	flyerUrl: varchar('flyer_url', { length: 500 }),
 	rsvpLink: varchar('rsvp_link', { length: 500 }),
@@ -114,7 +122,8 @@ export const Events = pgTable('events', {
 }, (table) => [
 	index('events_idx_id').on(table.id),
 	index('events_idx_committee_id').on(table.committeeId),
-	index('events_idx_time').on(table.time),
+	index('events_idx_start_time').on(table.startTime),
+	index('events_idx_time_desc').on(sql`start_time DESC`),
 	index('events_idx_title').on(table.title),
 	index('events_idx_location').on(table.location),
 	index('events_idx_created_at').on(table.createdAt),
@@ -123,13 +132,14 @@ export const Events = pgTable('events', {
 // EventAttendees: Join table for many-to-many relation between Events and Members
 export const EventAttendees = pgTable('event_attendees', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	eventId: uuid('event_id').notNull().references(() => Events.id),
-	memberId: uuid('member_id').notNull().references(() => Members.id),
+	eventId: uuid('event_id').notNull().references(() => Events.id, { onDelete: 'cascade' }),
+	memberId: uuid('member_id').notNull().references(() => Members.id, { onDelete: 'cascade' }),
 	timestamp: timestamp('timestamp', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
 	index('event_attendees_idx_id').on(table.id),
 	index('event_attendees_idx_event_id').on(table.eventId),
 	index('event_attendees_idx_member_id').on(table.memberId),
+	unique('event_attendee_unique').on(table.eventId, table.memberId),
 ]);
 
 // Projects
@@ -142,6 +152,8 @@ export const Projects = pgTable('projects', {
 	softwareInfo: text('software_info'),
 	skills: text('skills'), // Comma-separated list of skills (e.g. "Python, C++, Machine Learning")
 	photoUrls: text('photo_urls').$type<string[]>(),
+	discordRoleId: varchar('discord_role_id', { length: 64 }),
+	active: boolean('active').notNull().default(true),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
@@ -154,14 +166,15 @@ export const Projects = pgTable('projects', {
 // ProjectMembers: Join table for many-to-many relation between Projects and Members
 export const ProjectMembers = pgTable('project_members', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	projectId: uuid('project_id').notNull().references(() => Projects.id),
-	memberId: uuid('member_id').notNull().references(() => Members.id),
+	projectId: uuid('project_id').notNull().references(() => Projects.id, { onDelete: 'cascade' }),
+	memberId: uuid('member_id').notNull().references(() => Members.id, { onDelete: 'cascade' }),
 	isLead: boolean('is_lead').notNull().default(false),
 }, (table) => [
 	index('project_members_idx_id').on(table.id),
 	index('project_members_idx_project_id').on(table.projectId),
 	index('project_members_idx_member_id').on(table.memberId),
 	index('project_members_idx_is_lead').on(table.isLead),
+	unique('project_member_unique').on(table.projectId, table.memberId),
 ]);
 
 // Sponsorships
@@ -174,6 +187,7 @@ export const Sponsorships = pgTable('sponsorships', {
 	companyLogoUrl: varchar('company_logo_url', { length: 500 }),
 	websiteUrl: varchar('website_url', { length: 500 }),
 	contactEmail: varchar('contact_email', { length: 255 }).notNull(),
+	active: boolean('active').notNull().default(true),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
