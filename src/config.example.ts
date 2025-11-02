@@ -6,15 +6,12 @@ interface Config {
 		main: {
 			id: string;
 			channels: {
-				announcements: string;
 				calendar: string;
-				logs: string;
 			};
 		};
 		dev: {
 			id: string;
 			channels: {
-				announcements: string;
 				calendar: string;
 				logs: string;
 			};
@@ -47,15 +44,12 @@ const config: Config = {
 		main: {
 			id: '',
 			channels: {
-				announcements: '',
 				calendar: '',
-				logs: '',
 			},
 		},
 		dev: {
 			id: '',
 			channels: {
-				announcements: '',
 				calendar: '',
 				logs: '',
 			},
