@@ -2,9 +2,11 @@ import axios from 'axios';
 import ical from 'node-ical';
 
 export class Calendar {
+	client: any;
 	calendars: string[];
 
-	constructor(calendars: string[]) {
+	constructor(client: any, calendars: string[]) {
+		this.client = client;
 		this.calendars = calendars;
 	}
 

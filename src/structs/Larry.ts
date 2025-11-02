@@ -40,7 +40,7 @@ class Larry extends Client {
 		this.config = config;
 		this.logger = new logger(this);
 		this.database = new Database(this, this.config.postgres);
-		this.calendar = new Calendar(this.config.calendarURLs);
+		this.calendar = new Calendar(this, this.config.calendarURLs);
 		this.utils = new Utils(this);
 		this.permissionCache = new Collection();
 
