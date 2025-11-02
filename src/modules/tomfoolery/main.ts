@@ -1,4 +1,4 @@
-class Tomfoolery {
+export class Tomfoolery {
 	client: any;
 	features: string[];
 	constructor(client: any) {
@@ -11,5 +11,3 @@ class Tomfoolery {
 	// 	return;
 	// }
 }
-
-export default Tomfoolery;

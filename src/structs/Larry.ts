@@ -11,6 +11,7 @@ import { Utils, PermissionLevel } from '../modules/helpers/Utils.js';
 import * as schema from '../modules/database/Schema.js';
 import { Command } from './Command.js';
 import { Event } from './Event.js';
+import { Tomfoolery } from '../modules/tomfoolery/main.ts';
 
 interface CachedPermission {
 	level: PermissionLevel;
@@ -41,6 +42,7 @@ class Larry extends Client {
 		this.logger = new logger(this);
 		this.database = new Database(this, this.config.postgres);
 		this.calendar = new Calendar(this, this.config.calendarURLs);
+		this.tomfoolery = new Tomfoolery(this);
 		this.utils = new Utils(this);
 		this.permissionCache = new Collection();
 
