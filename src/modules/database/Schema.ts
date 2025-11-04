@@ -12,7 +12,7 @@ export const officerRoleEnum = pgEnum('officer_role_enum', [
 	'committee_lead',
 ]);
 
-// Permissions
+// Permission Types: scan_attendance, view_statistics, manage_context
 export const permissionEnum = pgEnum('permission_enum', [
 	'scan_attendance',
 	'view_statistics',
@@ -20,7 +20,7 @@ export const permissionEnum = pgEnum('permission_enum', [
 ]);
 
 
-// Gender: Male (M), Female (F), Non-Binary (NB), Other (O), Prefer Not to Say (PNTS)
+// Genders: Male (M), Female (F), Non-Binary (NB), Other (O), Prefer Not to Say (PNTS)
 export const genderEnum = pgEnum('gender_enum', [
 	'M', 'F', 'NB', 'O', 'PNTS',
 ]);
@@ -30,6 +30,14 @@ export const sponsorshipTierEnum = pgEnum('sponsorship_tier_enum', [
 	'bronze',
 	'silver',
 	'gold',
+]);
+
+// Event Host Types: club, committee, project, member
+export const eventHostTypeEnum = pgEnum('event_host_type_enum', [
+	'club',
+	'committee',
+	'project',
+	'member',
 ]);
 
 
@@ -109,13 +117,6 @@ export const CommitteeMembers = pgTable('committee_members', {
 ]);
 
 // Events
-export const eventHostTypeEnum = pgEnum('event_host_type_enum', [
-	'club',
-	'committee',
-	'project',
-	'member',
-]);
-
 export const Events = pgTable('events', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	title: varchar('title', { length: 255 }).notNull(),
