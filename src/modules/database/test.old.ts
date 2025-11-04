@@ -1,7 +1,6 @@
 import { Database } from './Database';
 import { v4 as uuidv4 } from 'uuid';
 
-// Hardcoded connection string
 const connectionString = 'postgres://user:password@localhost:5432/larrydb';
 
 async function main() {

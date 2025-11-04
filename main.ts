@@ -1,4 +1,4 @@
-import Larry from './src/structs/Larry.js';
+import Larry from './src/structs/Larry.ts';
 
 const bot = new Larry();
 
