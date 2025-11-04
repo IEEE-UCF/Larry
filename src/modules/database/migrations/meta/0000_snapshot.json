@@ -1,5 +1,5 @@
 {
-  "id": "8f65f292-9079-4496-94b1-e5ef0c94ca1d",
+  "id": "dd5f604c-5d5e-48ca-bc57-f5ba1818d00a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -468,8 +468,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "committee_id": {
-          "name": "committee_id",
+        "host_type": {
+          "name": "host_type",
+          "type": "event_host_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "host_id": {
+          "name": "host_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -530,6 +537,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -561,11 +574,17 @@
           "method": "btree",
           "with": {}
         },
-        "events_idx_committee_id": {
-          "name": "events_idx_committee_id",
+        "events_idx_host": {
+          "name": "events_idx_host",
           "columns": [
             {
-              "expression": "committee_id",
+              "expression": "host_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "host_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -667,21 +686,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "events_committee_id_committees_id_fk": {
-          "name": "events_committee_id_committees_id_fk",
-          "tableFrom": "events",
-          "tableTo": "committees",
-          "columnsFrom": [
-            "committee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "events_slug_unique": {
@@ -689,6 +694,152 @@
           "nullsNotDistinct": false,
           "columns": [
             "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.member_permissions": {
+      "name": "member_permissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_by_id": {
+          "name": "granted_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "context_type": {
+          "name": "context_type",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context_id": {
+          "name": "context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "permission": {
+          "name": "permission",
+          "type": "permission_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "member_permissions_idx_member": {
+          "name": "member_permissions_idx_member",
+          "columns": [
+            {
+              "expression": "member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "member_permissions_idx_context": {
+          "name": "member_permissions_idx_context",
+          "columns": [
+            {
+              "expression": "context_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "context_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "member_permissions_member_id_members_id_fk": {
+          "name": "member_permissions_member_id_members_id_fk",
+          "tableFrom": "member_permissions",
+          "tableTo": "members",
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "member_permissions_granted_by_id_members_id_fk": {
+          "name": "member_permissions_granted_by_id_members_id_fk",
+          "tableFrom": "member_permissions",
+          "tableTo": "members",
+          "columnsFrom": [
+            "granted_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "member_permission_unique": {
+          "name": "member_permission_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "member_id",
+            "context_type",
+            "context_id",
+            "permission"
           ]
         }
       },
@@ -724,13 +875,6 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
-        },
-        "officer_status": {
-          "name": "officer_status",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "officer_role": {
           "name": "officer_role",
@@ -801,6 +945,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "portrait_url": {
+          "name": "portrait_url",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
         },
         "resume_url": {
           "name": "resume_url",
@@ -884,21 +1034,6 @@
           "columns": [
             {
               "expression": "email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_idx_officer_status": {
-          "name": "members_idx_officer_status",
-          "columns": [
-            {
-              "expression": "officer_status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1040,27 +1175,6 @@
             },
             {
               "expression": "last_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_idx_active_officer": {
-          "name": "members_idx_active_officer",
-          "columns": [
-            {
-              "expression": "officer_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "administrator",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1565,6 +1679,16 @@
     }
   },
   "enums": {
+    "public.event_host_type_enum": {
+      "name": "event_host_type_enum",
+      "schema": "public",
+      "values": [
+        "club",
+        "committee",
+        "project",
+        "member"
+      ]
+    },
     "public.gender_enum": {
       "name": "gender_enum",
       "schema": "public",
@@ -1585,6 +1709,15 @@
         "executive_secretary",
         "executive_treasurer",
         "committee_lead"
+      ]
+    },
+    "public.permission_enum": {
+      "name": "permission_enum",
+      "schema": "public",
+      "values": [
+        "scan_attendance",
+        "view_statistics",
+        "manage_context"
       ]
     },
     "public.sponsorship_tier_enum": {
