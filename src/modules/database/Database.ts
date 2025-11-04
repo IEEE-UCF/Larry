@@ -196,13 +196,13 @@ export class Database {
 	}
 
 	/**
-	 * Get all officers
+	 * Get all members with an officerRole (for display)
 	 */
 	async getOfficers(): Promise<Member[]> {
 		try {
 			return await this.db.select()
 				.from(schema.Members)
-				.where(eq(schema.Members.officerStatus, true))
+				.where(sql`${schema.Members.officerRole} IS NOT NULL`)
 				.orderBy(asc(schema.Members.officerRole));
 		} catch (error) {
 			console.error('Error getting officers:', error);
@@ -301,6 +301,36 @@ export class Database {
 		}
 	}
 
+	/**
+	 * Get active members
+	 */
+	async getActiveMembers(): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.active, true))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting active members:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get members by officer role
+	 */
+	async getMembersByOfficerRole(role: 'executive_chair' | 'executive_vice_chair' | 'executive_secretary' | 'executive_treasurer' | 'committee_lead'): Promise<Member[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Members)
+				.where(eq(schema.Members.officerRole, role))
+				.orderBy(asc(schema.Members.firstName), asc(schema.Members.lastName));
+		} catch (error) {
+			console.error('Error getting members by officer role:', error);
+			return [];
+		}
+	}
+
 	// ==================== EVENT METHODS ====================
 
 	/**
@@ -340,8 +370,8 @@ export class Database {
 			const now = new Date();
 			return await this.db.select()
 				.from(schema.Events)
-				.where(gte(schema.Events.time, now))
-				.orderBy(asc(schema.Events.time))
+				.where(gte(schema.Events.startTime, now))
+				.orderBy(asc(schema.Events.startTime))
 				.limit(limit);
 		} catch (error) {
 			console.error('Error getting upcoming events:', error);
@@ -357,8 +387,8 @@ export class Database {
 			const now = new Date();
 			return await this.db.select()
 				.from(schema.Events)
-				.where(lte(schema.Events.time, now))
-				.orderBy(desc(schema.Events.time))
+				.where(lte(schema.Events.startTime, now))
+				.orderBy(desc(schema.Events.startTime))
 				.limit(limit);
 		} catch (error) {
 			console.error('Error getting past events:', error);
@@ -379,7 +409,7 @@ export class Database {
 					ilike(schema.Events.location, searchTerm),
 					ilike(schema.Events.description, searchTerm),
 				))
-				.orderBy(desc(schema.Events.time))
+				.orderBy(desc(schema.Events.startTime))
 				.limit(limit);
 		} catch (error) {
 			console.error('Error searching events:', error);
@@ -463,6 +493,37 @@ export class Database {
 		}
 	}
 
+	/**
+	 * Get committee by slug
+	 */
+	async getCommitteeBySlug(slug: string): Promise<Committee | null> {
+		try {
+			const committees = await this.db.select()
+				.from(schema.Committees)
+				.where(eq(schema.Committees.slug, slug))
+				.limit(1);
+			return committees[0] ?? null;
+		} catch (error) {
+			console.error('Error getting committee by slug:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Get active committees
+	 */
+	async getActiveCommittees(): Promise<Committee[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Committees)
+				.where(eq(schema.Committees.active, true))
+				.orderBy(asc(schema.Committees.title));
+		} catch (error) {
+			console.error('Error getting active committees:', error);
+			return [];
+		}
+	}
+
 	// ==================== PROJECT METHODS ====================
 
 	/**
@@ -528,6 +589,37 @@ export class Database {
 		}
 	}
 
+	/**
+	 * Get project by slug
+	 */
+	async getProjectBySlug(slug: string): Promise<Project | null> {
+		try {
+			const projects = await this.db.select()
+				.from(schema.Projects)
+				.where(eq(schema.Projects.slug, slug))
+				.limit(1);
+			return projects[0] ?? null;
+		} catch (error) {
+			console.error('Error getting project by slug:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Get active projects
+	 */
+	async getActiveProjects(): Promise<Project[]> {
+		try {
+			return await this.db.select()
+				.from(schema.Projects)
+				.where(eq(schema.Projects.active, true))
+				.orderBy(asc(schema.Projects.title));
+		} catch (error) {
+			console.error('Error getting active projects:', error);
+			return [];
+		}
+	}
+
 	// ==================== SPONSORSHIP METHODS ====================
 
 	/**
@@ -585,6 +677,191 @@ export class Database {
 		} catch (error) {
 			console.error('Error getting all sponsorships:', error);
 			return [];
+		}
+	}
+
+	// ==================== MEMBER PERMISSIONS METHODS ====================
+
+	/**
+	 * Grant a permission to a member in a specific context
+	 */
+	async grantPermission(
+		memberId: string,
+		permission: 'scan_attendance' | 'view_statistics' | 'manage_context',
+		contextType: string,
+		contextId?: string | null,
+		grantedById?: string | null,
+		expiresAt?: Date | null,
+	): Promise<typeof schema.MemberPermissions.$inferSelect | null> {
+		try {
+			const permissions = await this.db.insert(schema.MemberPermissions).values({
+				memberId,
+				permission,
+				contextType,
+				contextId: contextId ?? null,
+				grantedById: grantedById ?? null,
+				expiresAt: expiresAt ?? null,
+			}).returning();
+			return permissions[0] ?? null;
+		} catch (error) {
+			console.error('Error granting permission:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Revoke a permission from a member (soft delete by setting active to false)
+	 */
+	async revokePermission(permissionId: string): Promise<boolean> {
+		try {
+			await this.db.update(schema.MemberPermissions)
+				.set({ active: false })
+				.where(eq(schema.MemberPermissions.id, permissionId));
+			return true;
+		} catch (error) {
+			console.error('Error revoking permission:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Get all active permissions for a member
+	 */
+	async getMemberPermissions(memberId: string): Promise<typeof schema.MemberPermissions.$inferSelect[]> {
+		try {
+			const now = new Date();
+			return await this.db.select()
+				.from(schema.MemberPermissions)
+				.where(
+					sql`${schema.MemberPermissions.memberId} = ${memberId} 
+						AND ${schema.MemberPermissions.active} = true 
+						AND (${schema.MemberPermissions.expiresAt} IS NULL OR ${schema.MemberPermissions.expiresAt} > ${now})`,
+				);
+		} catch (error) {
+			console.error('Error getting member permissions:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Check if a member has a specific permission in a context
+	 */
+	async hasPermission(
+		memberId: string,
+		permission: 'scan_attendance' | 'view_statistics' | 'manage_context',
+		contextType: string,
+		contextId?: string | null,
+	): Promise<boolean> {
+		try {
+			const now = new Date();
+			const permissions = await this.db.select()
+				.from(schema.MemberPermissions)
+				.where(
+					sql`${schema.MemberPermissions.memberId} = ${memberId}
+						AND ${schema.MemberPermissions.permission} = ${permission}
+						AND ${schema.MemberPermissions.contextType} = ${contextType}
+						AND ${schema.MemberPermissions.contextId} = ${contextId ?? null}
+						AND ${schema.MemberPermissions.active} = true
+						AND (${schema.MemberPermissions.expiresAt} IS NULL OR ${schema.MemberPermissions.expiresAt} > ${now})`,
+				)
+				.limit(1);
+			return permissions.length > 0;
+		} catch (error) {
+			console.error('Error checking permission:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Get all permissions for a specific context (e.g., all permissions for a project)
+	 */
+	async getContextPermissions(contextType: string, contextId?: string | null): Promise<typeof schema.MemberPermissions.$inferSelect[]> {
+		try {
+			const now = new Date();
+			return await this.db.select()
+				.from(schema.MemberPermissions)
+				.where(
+					sql`${schema.MemberPermissions.contextType} = ${contextType}
+						AND ${schema.MemberPermissions.contextId} = ${contextId ?? null}
+						AND ${schema.MemberPermissions.active} = true
+						AND (${schema.MemberPermissions.expiresAt} IS NULL OR ${schema.MemberPermissions.expiresAt} > ${now})`,
+				);
+		} catch (error) {
+			console.error('Error getting context permissions:', error);
+			return [];
+		}
+	}
+
+	// ==================== EVENT HOST METHODS ====================
+
+	/**
+	 * Get events by host (club, committee, project, or member)
+	 */
+	async getEventsByHost(hostType: 'club' | 'committee' | 'project' | 'member', hostId?: string | null): Promise<Event[]> {
+		try {
+			if (hostType === 'club') {
+				return await this.db.select()
+					.from(schema.Events)
+					.where(eq(schema.Events.hostType, 'club'))
+					.orderBy(desc(schema.Events.startTime));
+			} else {
+				return await this.db.select()
+					.from(schema.Events)
+					.where(
+						sql`${schema.Events.hostType} = ${hostType} AND ${schema.Events.hostId} = ${hostId}`,
+					)
+					.orderBy(desc(schema.Events.startTime));
+			}
+		} catch (error) {
+			console.error('Error getting events by host:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get upcoming events by host
+	 */
+	async getUpcomingEventsByHost(hostType: 'club' | 'committee' | 'project' | 'member', hostId?: string | null, limit: number = 20): Promise<Event[]> {
+		try {
+			const now = new Date();
+			if (hostType === 'club') {
+				return await this.db.select()
+					.from(schema.Events)
+					.where(
+						sql`${schema.Events.hostType} = 'club' AND ${schema.Events.startTime} >= ${now}`,
+					)
+					.orderBy(asc(schema.Events.startTime))
+					.limit(limit);
+			} else {
+				return await this.db.select()
+					.from(schema.Events)
+					.where(
+						sql`${schema.Events.hostType} = ${hostType} 
+							AND ${schema.Events.hostId} = ${hostId}
+							AND ${schema.Events.startTime} >= ${now}`,
+					)
+					.orderBy(asc(schema.Events.startTime))
+					.limit(limit);
+			}
+		} catch (error) {
+			console.error('Error getting upcoming events by host:', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get event by slug
+	 */
+	async getEventBySlug(slug: string): Promise<Event | null> {
+		try {
+			const events = await this.db.select()
+				.from(schema.Events)
+				.where(eq(schema.Events.slug, slug))
+				.limit(1);
+			return events[0] ?? null;
+		} catch (error) {
+			console.error('Error getting event by slug:', error);
+			return null;
 		}
 	}
 
