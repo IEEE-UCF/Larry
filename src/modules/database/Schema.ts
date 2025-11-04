@@ -12,6 +12,14 @@ export const officerRoleEnum = pgEnum('officer_role_enum', [
 	'committee_lead',
 ]);
 
+// Permissions
+export const permissionEnum = pgEnum('permission_enum', [
+	'scan_attendance',
+	'view_statistics',
+	'manage_context',
+]);
+
+
 // Gender: Male (M), Female (F), Non-Binary (NB), Other (O), Prefer Not to Say (PNTS)
 export const genderEnum = pgEnum('gender_enum', [
 	'M', 'F', 'NB', 'O', 'PNTS',
@@ -33,7 +41,6 @@ export const Members = pgTable('members', {
 	firstName: varchar('first_name', { length: 255 }).notNull(),
 	middleName: varchar('middle_name', { length: 255 }),
 	lastName: varchar('last_name', { length: 255 }).notNull(),
-	officerStatus: boolean('officer_status').notNull().default(false),
 	officerRole: officerRoleEnum('officer_role'),
 	administrator: boolean('administrator').notNull().default(false),
 	biography: text('biography'),
@@ -45,6 +52,7 @@ export const Members = pgTable('members', {
 	major: varchar('major', { length: 255 }).notNull(), // Check on this to maybe add like a default list of majors or smth similar
 	gender: genderEnum('gender').notNull(),
 	graduationYear: integer('graduation_year').notNull(),
+	portraitUrl: varchar('portrait_url', { length: 500 }),
 	resumeURL: text('resume_url'),
 	linkedinURL: text('linkedin_url'),
 	githubURL: text('github_url'),
@@ -56,7 +64,6 @@ export const Members = pgTable('members', {
 	index('members_idx_id').on(table.id),
 	index('members_idx_discord_id').on(table.discordID),
 	index('members_idx_email').on(table.email),
-	index('members_idx_officer_status').on(table.officerStatus),
 	index('members_idx_officer_role').on(table.officerRole),
 	index('members_idx_administrator').on(table.administrator),
 	index('members_idx_dues_paid').on(table.duesPaid),
@@ -66,7 +73,6 @@ export const Members = pgTable('members', {
 	index('members_idx_created_at').on(table.createdAt),
 	index('members_idx_updated_at').on(table.updatedAt),
 	index('members_idx_full_name').on(table.firstName, table.lastName),
-	index('members_idx_active_officer').on(table.officerStatus, table.administrator),
 ]);
 
 // Committees
@@ -103,11 +109,19 @@ export const CommitteeMembers = pgTable('committee_members', {
 ]);
 
 // Events
+export const eventHostTypeEnum = pgEnum('event_host_type_enum', [
+	'club',
+	'committee',
+	'project',
+	'member',
+]);
+
 export const Events = pgTable('events', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	title: varchar('title', { length: 255 }).notNull(),
 	location: varchar('location', { length: 255 }).notNull(),
-	committeeId: uuid('committee_id').references(() => Committees.id, { onDelete: 'cascade' }),
+	hostType: eventHostTypeEnum('host_type').notNull(), // 'club', 'committee', 'project', 'member'
+	hostId: uuid('host_id'), // nullable, references Committees.id, Projects.id, or Members.id if not 'club'
 	slug: varchar('slug', { length: 64 }).unique(),
 	startTime: timestamp('start_time', { withTimezone: true }).notNull(),
 	endTime: timestamp('end_time', { withTimezone: true }),
@@ -117,11 +131,12 @@ export const Events = pgTable('events', {
 	flyerUrl: varchar('flyer_url', { length: 500 }),
 	rsvpLink: varchar('rsvp_link', { length: 500 }),
 	photoUrls: text('photo_urls').$type<string[]>(),
+	duration: integer('duration'), // optional, duration in minutes
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => sql`now()`),
 }, (table) => [
 	index('events_idx_id').on(table.id),
-	index('events_idx_committee_id').on(table.committeeId),
+	index('events_idx_host').on(table.hostType, table.hostId),
 	index('events_idx_start_time').on(table.startTime),
 	index('events_idx_time_desc').on(sql`start_time DESC`),
 	index('events_idx_title').on(table.title),
@@ -198,6 +213,23 @@ export const Sponsorships = pgTable('sponsorships', {
 	index('sponsorships_idx_updated_at').on(table.updatedAt),
 ]);
 
+// MemberPermissions: Delegated or custom permissions for members
+export const MemberPermissions = pgTable('member_permissions', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	memberId: uuid('member_id').notNull().references(() => Members.id, { onDelete: 'cascade' }),
+	grantedById: uuid('granted_by_id').references(() => Members.id, { onDelete: 'set null' }), // who granted the permission
+	contextType: varchar('context_type', { length: 32 }).notNull(), // e.g., 'committee', 'project', 'global'
+	contextId: uuid('context_id'), // links to a specific committee/project if applicable
+	permission: permissionEnum('permission').notNull(),
+	active: boolean('active').notNull().default(true),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	expiresAt: timestamp('expires_at', { withTimezone: true }), // optional expiration for temporary access
+}, (table) => [
+	index('member_permissions_idx_member').on(table.memberId),
+	index('member_permissions_idx_context').on(table.contextType, table.contextId),
+	unique('member_permission_unique').on(table.memberId, table.contextType, table.contextId, table.permission),
+]);
+
 // Infer Types
 export type Member = typeof Members.$inferSelect;
 export type NewMember = typeof Members.$inferInsert;
@@ -215,3 +247,5 @@ export type CommitteeMember = typeof CommitteeMembers.$inferSelect;
 export type NewCommitteeMember = typeof CommitteeMembers.$inferInsert;
 export type Sponsorship = typeof Sponsorships.$inferSelect;
 export type NewSponsorship = typeof Sponsorships.$inferInsert;
+export type MemberPermission = typeof MemberPermissions.$inferSelect;
+export type NewMemberPermission = typeof MemberPermissions.$inferInsert;
