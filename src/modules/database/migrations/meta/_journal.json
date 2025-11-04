@@ -8,6 +8,13 @@
       "when": 1762125896857,
       "tag": "0000_next_wallow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762283840372,
+      "tag": "0001_illegal_franklin_storm",
+      "breakpoints": true
     }
   ]
 }
